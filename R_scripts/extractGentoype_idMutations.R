@@ -2,6 +2,7 @@
 ### Import VCF ###
 ##################
 library(vcfR)
+library(dplyr)
 
 vcf <- read.vcfR("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/PRO100175_PSU175_SAX_b04/dup_removed_DB_snps_P1-5.vcf")
 
@@ -75,7 +76,7 @@ probes<-noDups_parent %>%
   filter(same == "diff")
 
 # probes with mutations in parental samples
-#write.table(as.data.frame(probes[,1]),"smutations.txt", sep="\t", quote=F,row.names=F)
+write.table(as.data.frame(probes[,1]),"smutations.txt", sep="\t", quote=F,row.names=F)
 
 allSample_mut<-gt[row.names(gt) %in% probes$probe,]
 

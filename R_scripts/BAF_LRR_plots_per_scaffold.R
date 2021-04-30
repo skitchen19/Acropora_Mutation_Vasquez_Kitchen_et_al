@@ -2,9 +2,10 @@
 ### Bar Plot of PEMs ###
 ########################
 library(ggplot2)
+library(reshape2)
 
-GOH <- c(220,91)
-LOH <- c(48,45)
+GOH <- c(217,86)
+LOH <- c(50,47)
 
 tab<-rbind(GOH,LOH)
 

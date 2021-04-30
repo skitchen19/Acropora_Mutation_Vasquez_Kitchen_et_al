@@ -34,6 +34,37 @@ bitwise_distance <- bitwise.dist(genind_clone)
 genDist<-as.matrix(bitwise_distance)
 #write.table(genDist,"geneticDistance2.txt",sep="\t")
 
+#########################################################
+## Histogram of Genetic Distance of A. palmata samples ##
+## Kitchen et al. 2020, Scientific Reports             ##
+#########################################################
+
+#convert names of columns to match rownames of matrix
+genDist2<-rownames_to_column(as.data.frame(genDist),"affy_id")
+
+# read in list of A. palmata samples
+AP_list<-read.table("aplam_list.txt",sep="\t", header=F,stringsAsFactors=F)
+
+#subset matrix to only A. palmata samples in the list
+gendist_AP<-genDist2[,colnames(genDist2) %in% unlist(AP_list)]
+gendist_AP2<-genDist2[rownames((genDist2) %in% unlist(AP_list),]
+
+# get upper genetic distance estimate
+upper <- round(max(gendist_AP2), digits = 1)
+
+#plot histogram
+hist(gendist_AP2[gendist_AP2 > 0 & gendist_AP2 < 1],
+     breaks=20,
+     axes = TRUE,
+     xlab = "Pairwise Genetic Distance",
+     ylab = "Frequency of Pairs",
+     xlim = c(0, upper), ylim=c(0,20000),main = "")
+
+abline(v=0.032,lty=2, col="black", lwd=2) #genet threshold
+abline(v=0.12773133,lty=1, col="#90C640", lwd=2) #Apalm genet avg
+
+rect(0.005658987-0.005440774,0,0.005658987+0.005440774,20000, col= rgb(0,0,1.0,alpha=0.5),border = NA)#avg apalm ramet distance
+
 #################################
 ### Subset Matrix for Samples ###
 #################################
@@ -41,8 +72,6 @@ library(tibble)
 library(dplyr)
 library(tidyr)
 
-# add affy ID to columns
-genDist2<-rownames_to_column(as.data.frame(genDist),"affy_id") 
 
 # different sets of samples of interests
 ramet<-c("a550962-4393310-052921-062_A01.CEL",
@@ -142,31 +171,42 @@ meltGenDist2<-meltGenDist %>%
   filter(group3 == "parent x CUxFL" | group3 == "parent x selfed"| group3 =="parent x automictic"| group3 == "ramet x ramet"
          | group3 == "ramet x rametNeighbor")
 
+cu_cu<-read.csv("E:/PSU/NOAA/somatic_mutation/CURCUR_GenDIst.csv",
+                check.names=FALSE, header=T, 
+                na.strings=c("", "NA"), stringsAsFactors=FALSE,quote="")
+
+
+cu_cu_filter<-cu_cu %>% select(Type_of_Relationship,dist)
+
+colnames(cu_cu_filter)<-c("group3","value")
+
+meltGenDist3<-rbind(meltGenDist2, cu_cu_filter)
 
 ##############################
 ### Plot Genetic Distances ###
 ##############################
 library(ggplot2)
-library(ggbeeswarm)
+#library(ggbeeswarm)
 
 #set names of factor levels
-meltGenDist2$group3<-factor(meltGenDist2$group3, levels=c("ramet x ramet",
+meltGenDist3$group3<-factor(meltGenDist3$group3, levels=c("ramet x ramet",
                                             "ramet x rametNeighbor",
                                             "parent x automictic",
                                             "parent x selfed",
-                                            "parent x CUxFL"))
+                                            "parent x CUxFL",
+                                            "parent x CUxCU"))
 
 # plot genetic distance violin plot
-p <- ggplot(meltGenDist2, aes(x=group3, y=value, color=group3, fill=group3)) + 
+p <- ggplot(meltGenDist3, aes(x=group3, y=value, color=group3, fill=group3)) + 
   geom_violin(lwd=0.8,trim = FALSE)+
   #geom_beeswarm(size=1.5, alpha=0.8,dodge.width = 0.3, cex=1.4)+
-  geom_boxplot(width=0.1, color="darkgrey", alpha=0.2) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2) +
   theme_classic() +
   ylab("Pairwise Genetic Distance")+
-  xlab("")+ ylim(0,0.1)+
+  xlab("")+
   theme(legend.position = "none")+
-  scale_color_manual(values=c("black","grey","#E69F00","#D55E00","#0072B2"))+
-  scale_fill_manual(values=c("#00000020","#8F8F8F20","#E69F0020","#D55E0020","#0072B220"))+
+  scale_color_manual(values=c("black","grey","#E69F00","#D55E00","#0072B2", "#0072B2"))+
+  scale_fill_manual(values=c("#00000020","#8F8F8F20","#E69F0020","#D55E0020","#0072B220","#0072B220"))+
   labs(color='Species') 
 p 
 
@@ -175,29 +215,33 @@ p
 #############################################################
 
 #Average and standard deviations
-A <- mean(meltGenDist2$value[meltGenDist2$group3== "ramet x ramet"])
+A <- mean(meltGenDist3$value[meltGenDist3$group3== "ramet x ramet"])
 #0.004097279
-As <- sd(meltGenDist2$value[meltGenDist2$group3== "ramet x ramet"])
+As <- sd(meltGenDist3$value[meltGenDist3$group3== "ramet x ramet"])
 #[1] 0.001712921
-B <- mean(meltGenDist2$value[meltGenDist2$group3== "ramet x rametNeighbor"])
+B <- mean(meltGenDist3$value[meltGenDist3$group3== "ramet x rametNeighbor"])
 #0.005398558
-Bs <- sd(meltGenDist2$value[meltGenDist2$group3== "ramet x rametNeighbor"])
+Bs <- sd(meltGenDist3$value[meltGenDist3$group3== "ramet x rametNeighbor"])
 #[1]0.002990064
-C <- mean(meltGenDist2$value[meltGenDist2$group3== "parent x automictic"])
+C <- mean(meltGenDist3$value[meltGenDist3$group3== "parent x automictic"])
 #0.02142652
-Cs <- sd(meltGenDist2$value[meltGenDist2$group3== "parent x automictic"])
+Cs <- sd(meltGenDist3$value[meltGenDist3$group3== "parent x automictic"])
 #[1]0.002351426
-D <- mean(meltGenDist2$value[meltGenDist2$group3== "parent x selfed"])
+D <- mean(meltGenDist3$value[meltGenDist3$group3== "parent x selfed"])
 #0.03713704
-Ds <- sd(meltGenDist2$value[meltGenDist2$group3== "parent x selfed"])
+Ds <- sd(meltGenDist3$value[meltGenDist3$group3== "parent x selfed"])
 #[1] 0.005153534
-E <- mean(meltGenDist2$value[meltGenDist2$group3== "parent x CUxFL"])
+E <- mean(meltGenDist3$value[meltGenDist3$group3== "parent x CUxFL"])
 #[1] 0.08248021
-Es <- sd(meltGenDist2$value[meltGenDist2$group3== "parent x CUxFL"])
+Es <- sd(meltGenDist3$value[meltGenDist3$group3== "parent x CUxFL"])
 #[1] 0.002675624
+F <- mean(meltGenDist3$value[meltGenDist3$group3== "parent x CUxCU"])
+#[1] 0.06634868
+Fs <- sd(meltGenDist3$value[meltGenDist3$group3== "parent x CUxCU"])
+#[1] 0.003342121
 
 # ANOVA tests on genetic distance by group
-mod<-aov(meltGenDist2$value~meltGenDist2$group3)
+mod<-aov(meltGenDist3$value~meltGenDist3$group3)
 summary(mod)
 
 # post-hoc tests
@@ -224,10 +268,10 @@ nodelabels(nj_phylogeny_tree$node.label, cex=.5,  frame="n", font=3, xpd=TRUE)
 
 #write.tree(nj_phylogeny_tree, file = "nj_parent_tree.nwk")
 
-# Tree based on only the PEMs
+# Tree based on only the SMs
 mut<-read.table("E:/PSU/NOAA/somatic_mutation/smutations.txt", sep="\t", header=T)
 
-#subset to the PEMs
+#subset to the SMs
 genind_clone_Parents_mutOnly<-genind_clone_Parents[,genind_clone_Parents@loc.fac %in% mut$probe]
 
 # Construct tree and plot.
@@ -328,7 +372,7 @@ het<-heterozygous_alleles_all_data_table %>%
   arrange(factor(group, levels=c("BE","FL","CUxFL","CU","ramet","rametNeighbor","selfed","automictic")),percent_heterozygous_coral_all) %>%
   mutate(idu= seq(1,length(percent_heterozygous_coral_all)))
 
-#heterozygosity plot
+# heterozygosity plot
 ggplot(het, aes(idu,percent_heterozygous_coral_all, color=group, fill=group))+
   geom_point(size=1.7, pch=21) + ylim(5,20)+
   theme_classic() +
@@ -340,16 +384,76 @@ ggplot(het, aes(idu,percent_heterozygous_coral_all, color=group, fill=group))+
                              ramet="#FF801F80",rametNeighbor="#F0E44280",automictic="#E69F0080"))
 
 
+
 ###########################################
 ### Statistical Tests on Heterozygosity ###
 ###########################################
 
-# ANOVA tests
+# ANOVA tests of subset of samples above
 mod<-aov(percent_heterozygous_coral_all ~ group, data=het)
 summary(mod)
 
 # post-hoc tests
 TukeyHSD(mod)
+
+# read in heterozygosity estimates of all samples in vcf file
+het_tab <- read.csv("E:/PSU/NOAA/somatic_mutation/heterozygosity.csv")
+
+het_tab2<-het_tab %>% filter(species=="A.palmata")
+
+# mixed-effects model of the effect of location (fixed) and plate (random)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+
+mod2<-lmer(percent_heterozygous_coral_all~ location + (1|plate), data = het_tab2)
+summary(mod2)
+
+# pairwise comparisons with post-hoc multiple test correction
+emmeans(mod2, list(pairwise ~ location), adjust = "tukey")
+
+###########################
+## Plots of DNA mixtures ##
+###########################
+
+# genetic distance estimates of DNA mixtures to donor genets
+dat<-cbind.data.frame(pair=c("GAxGB","M1xGA","M1xGB","M2xGA","M2xGB"),
+           gen.dist=c("0.070866342","0.001929718","0.067159252","0.013025594","0.046541743"))
+
+# plot DNA mixture genetic distances
+ggplot(dat, aes(x=pair,y=as.numeric(gen.dist))) + 
+  geom_point(size=6)+ 
+  geom_hline(yintercept = 0.005398558, color="grey")+ # ramet distance
+  coord_flip() + xlab("")+ ylab("Pairwise Genetic Distance")+
+  theme_classic()
+
+# heterozygosity and missing data of DNA mixtures
+het2<-cbind.data.frame(sample=c("GA1","GA2","M1","M2","GB1","GB2"),
+                       heterozygosity=c("13.08895207","13.03310317","13.0077173","14.6831844","13.90129976","13.30239643"),
+                       missing=c("0.51","0.59","0.61","2.57","0.95","0.53"),
+                       group=c("GA","GA","M1","M2","GB","GB"))
+het2$sample <- factor(het2$sample, levels = het2$sample)
+
+# heterozygosity plot of DNA mixtures
+ggplot(het2, aes(x=sample,y=as.numeric(heterozygosity))) + 
+  geom_point(size=3)+ ylim(12.5,15)+
+  xlab("")+ ylab("% Heterozygosity") +
+  theme_classic()
+
+# barplot of fixed sites between genet A and genet B of the DNA mixes
+fixed_SNPs<-cbind.data.frame(sample=c("Genet A","M1","M2","Genet B"),sharedA=c("100","66.5","3.7","0"),
+                             sharedB=c("0","0","0","100"),notCalled=c("0","23.1","2.8","0"),
+                             heterozygous=c("0","10.4","93.5","0"))
+library(reshape2)
+meltFixed<-melt(fixed_SNPs,id=c("sample"))
+meltFixed$value<-as.numeric(meltFixed$value)
+meltFixed$sample <- factor(meltFixed$sample, levels = fixed_SNPs$sample)
+
+ggplot(meltFixed, aes(fill=variable, y=value, x=sample)) + 
+  geom_bar(position="fill", stat="identity") + theme_classic()+
+  scale_y_continuous(expand = c(0, 0)) + ylab("Proportion of Fixed SNPs")+
+  xlab("") +  scale_fill_manual(values=c("#F79028", "#8D4C9E","grey","black"))
+
 
 ######################################
 ### Calculate Recombination Events ###

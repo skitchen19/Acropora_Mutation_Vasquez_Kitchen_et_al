@@ -12,10 +12,10 @@ library(zoo)
 library(ggpubr)
 
 # Read in VCF input file.
-vcf <- read.vcfR("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/PRO100175_PSU175_SAX_b04/dup_removed_DB_snps_P1-5.vcf")
+vcf <- read.vcfR("dup_removed_DB_snps_P1-5.vcf")
 
 # Read in population information
-population_info_data_table <- read.table("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/popInfo_P1-5.txt",
+population_info_data_table <- read.table("popInfo_P1-5.txt",
                                          check.names=FALSE, header=F, 
                                          na.strings=c("", "NA"), stringsAsFactors=FALSE, sep="\t",quote="")
 colnames(population_info_data_table) <- c("row_id", "affy_id", "user_specimen_id", "region")
@@ -182,7 +182,7 @@ write.table(loss,"CNV_loss_offspring2.txt", sep="\t",quote=F)
 
 write.table(sub,"CNV_LRR_offspring.txt", sep="\t",quote=F)
 
-# now subset parentss
+# now subset parents
 sub<-lfm5 %>% select(CHROM, POS,variable, value) %>%
   subset(variable %in% parent) %>%
   spread(.,variable,value) %>%
@@ -226,10 +226,22 @@ write.table(sub,"CNV_LRR_parent.txt", sep="\t",quote=F)
 
 library(chisq.posthoc.test)
 
+# predicted gains/losses between parent and offspring by SNP classification
+# Normal= not a mutation
+# SM= mutation in the parental genet
+# SM_inherited= mutation in the offspring shared with parental genet
+dat_both <- data.frame(Parent = c(1810,21,13), 
+                       Offspring = c(4282,63,34), 
+                       row.names = c("no change", "SM", "SM_inherited"))
+dat_both
+chi.t <- chisq.test(dat_both)
+mosaicplot(chi.t$observed, cex.axis =1 , main = "Observed counts")
+chisq.posthoc.test(dat_both)
+
 # predicted losses between parent and offspring
 dat_loss <- data.frame(Parent = c(1254,15,9), 
                        Offspring = c(1840,27,16), 
-                       row.names = c("no change", "PEM", "PEM_inherited"))
+                       row.names = c("no change", "SM", "SM_inherited"))
 dat_loss
 
 chi.t <- chisq.test(dat_loss)
@@ -239,13 +251,22 @@ chisq.posthoc.test(dat_loss)
 
 # predicted gains between parent and offspring
 dat_gain <- data.frame(Parent = c(556,6,4), 
-                       Offspring = c(2442,37,20), 
-                       row.names = c("no change", "PEM", "PEM_inherited"))
+                       Offspring = c(2442,36,18), 
+                       row.names = c("no change", "SM", "SM_inherited"))
 dat_gain
 
 chi.t <- chisq.test(dat_gain)
 mosaicplot(chi.t$observed, cex.axis =1 , main = "Observed counts")
 chisq.posthoc.test(dat_gain)
+
+# predicted CNVs (gains and losses) between parent and offspring
+dat_cnv <-data.frame(offspring = c(4346,15350), 
+                    parent = c(1831,17865), 
+                    row.names = c("CNV", "not"))
+
+chi.t <- chisq.test(dat_cnv)
+mosaicplot(chi.t$observed, cex.axis =1 , main = "Observed counts")
+chisq.posthoc.test(dat_cnv)
 
 # differences between parent and offspring gains and losses
 dat_gl <-data.frame(loss = c(1867,1269), 
@@ -256,20 +277,17 @@ chi.t <- chisq.test(dat_gl)
 mosaicplot(chi.t$observed, cex.axis =1 , main = "Observed counts")
 chisq.posthoc.test(dat_gl)
 
-chi.t$observed
-chi.t$expected
-
 # parent only gains vs. losses
 dat_parent <- data.frame(loss = c(1254,15,9), 
                          gain = c(556,6,4), 
-                         row.names = c("no change", "PEM", "PEM_inherited"))
+                         row.names = c("no change", "SM", "SM_inherited"))
 chi.t <- chisq.test(dat_parent)
 chisq.posthoc.test(dat_parent)
 
 # offspring only gains vs. losses
 dat_off <- data.frame(loss = c(1840,27,16), 
                       gain = c(2442,37,20), 
-                      row.names = c("no change", "PEM", "PEM_inherited"))
+                      row.names = c("no change", "SM", "SM_inherited"))
 chi.t <- chisq.test(dat_off)
 chisq.posthoc.test(dat_off)
 
@@ -278,8 +296,8 @@ chisq.posthoc.test(dat_off)
 ###########################################
 
 # load in files of scaffold size and predicted CNVs, sorted in Excel from output above
-scaff_len<-read.table("E:/PSU/NOAA/somatic_mutation/b-allele_freq/CNV/Adig_scaff_number_loss.txt",header=T)
-scaff_len2<-read.table("E:/PSU/NOAA/somatic_mutation/b-allele_freq/CNV/Adig_scaff_number_gain.txt",header=T)
+scaff_len<-read.table("Adig_scaff_number_loss.txt",header=T)
+scaff_len2<-read.table("Adig_scaff_number_gain.txt",header=T)
 
 #plot density of gains and losses
 ggplot(scaff_len, aes(x = Size/1e6)) +
@@ -288,7 +306,7 @@ ggplot(scaff_len, aes(x = Size/1e6)) +
   geom_density(data=scaff_len2, aes(x = Size/1e6), alpha=0.5, fill="orange")
 
 # load in file that includes in silico and  visual inspection, sorted in Excel from output above and visual inspection
-scaff_len3<-read.table("E:/PSU/NOAA/somatic_mutation/b-allele_freq/CNV/Adig_scaff_CNV_visuals.txt",header=T, sep="\t")
+scaff_len3<-read.table("Adig_scaff_CNV_visuals.txt",header=T, sep="\t")
 
 p<-ggplot(scaff_len3, aes(x = Size/1e6)) +
   theme_classic()+ xlim(0,3)+
@@ -349,7 +367,7 @@ library("UpSetR")
 
 Input <- read.table("CNV_freq_PA.txt",header=T)
 head(Input)
-Input$PEM<-as.factor(Input$PEM)
+Input$SM<-as.factor(Input$SM)
 
 upset(
   Input, 
@@ -368,19 +386,19 @@ upset(
   sets.bar.color = c("#D55E00","#0072B2","#D55E00","#0072B2"),
   queries = list(
     list(query = elements, 
-         params = list("PEM", c("Normal","PEM","PEM_inherited")),
+         params = list("SM", c("Normal","SM","SM_inherited")),
          color = "grey", active = T,query.name="No change"),
     list(query = elements, 
-         params = list("PEM", c("PEM","PEM_inherited")),
-         color = "#004166", active = T,query.name="PEM"),
+         params = list("SM", c("SM","SM_inherited")),
+         color = "#004166", active = T,query.name="SM"),
     list(query = elements, 
-         params = list("PEM", "PEM_inherited"),
-         color = "#57ABDB", active = T,query.name="PEM_inherited")))
+         params = list("SM", "SM_inherited"),
+         color = "#57ABDB", active = T,query.name="SM_inherited")))
 
 
-Input2 <- read.table("CNV_freq_PA_PEM.txt",header=T)
+Input2 <- read.table("CNV_freq_PA_SM.txt",header=T)
 head(Input2)
-Input2$PEM<-as.factor(Input2$PEM)
+Input2$SM<-as.factor(Input2$SM)
 
 upset(
   Input2, 
@@ -398,10 +416,10 @@ upset(
   sets.bar.color = c("#D55E00","#0072B2","#D55E00","#0072B2"),
   queries = list(
     list(query = elements, 
-         params = list("PEM", c("PEM","PEM_inherited")),
+         params = list("SM", c("SM","SM_inherited")),
          color = "#004166", active = T),
     list(query = elements, 
-         params = list("PEM", c("PEM_inherited")),
+         params = list("SM", c("SM_inherited")),
          color = "#57ABDB", active = T))
 )
 
@@ -469,8 +487,8 @@ ht_opt(heatmap_column_names_gp = gpar(fontface = "italic"),
        annotation_border = TRUE
 )
 
-column_ha = HeatmapAnnotation(mutations = factor(mat$PEM, levels=c("Normal","PEM","PEM_inherited")),
-                              col = list(mutations = c("Normal" = "grey", "PEM" = "#004166", "PEM_inherited" = "#57ABDB")),
+column_ha = HeatmapAnnotation(mutations = factor(mat$SM, levels=c("Normal","SM","SM_inherited")),
+                              col = list(mutations = c("Normal" = "grey", "SM" = "#004166", "SM_inherited" = "#57ABDB")),
                               annotation_legend_param = list(
                                 mutations = list(direction = "horizontal")))
 
