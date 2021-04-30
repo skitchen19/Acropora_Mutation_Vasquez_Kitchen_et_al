@@ -1,5 +1,5 @@
 ########################
-### Bar Plot of PEMs ###
+### Bar Plot of SMs ###
 ########################
 library(ggplot2)
 library(reshape2)
@@ -11,12 +11,12 @@ tab<-rbind(GOH,LOH)
 
 tab2<-melt(tab)
 
-colnames(tab)<-c("PEM","Inherited PEM")
+colnames(tab)<-c("SM","Inherited SM")
 
 ggplot(tab2, aes(Var1, value, fill=as.factor(Var2)))+
   geom_bar(stat="identity",position=position_dodge(0.65), color="white", width=0.6) +
   theme_classic()+
-  ylab("Number of PEMs") +
+  ylab("Number of SMs") +
   scale_y_continuous(expand = c(0, 0))+
   scale_fill_manual(values=c("#004166","#57ABDB"))
 
@@ -163,10 +163,10 @@ dfm5<-dfm4 %>%
 lfm6<-rbind(lfm5,dfm5)
 
 ###################################################
-### Extract A. digitifera Scaffolds with PEMs ###
+### Extract A. digitifera Scaffolds with SMs ###
 ###################################################
 
-#loop through chroms with PEMs
+#loop through chroms with SMs
 chr<-lfm6 %>% drop_na(probe) %>% select(CHROM) %>% unique()
 chr<-unlist(chr)
 
@@ -291,7 +291,7 @@ for(i in chr){
           axis.text = element_text(size = 6)) +
     coord_cartesian(expand = TRUE) + panel_border(size = 0.3)
   
-  pdf(paste0("E:/PSU/NOAA/somatic_mutation/b-allele_freq/PEM_plots_all_samples/",i,".pdf"), paper = "letter", width = 8.5, height = 11)
+  pdf(paste0("E:/PSU/NOAA/somatic_mutation/b-allele_freq/SM_plots_all_samples/",i,".pdf"), paper = "letter", width = 8.5, height = 11)
   print(ggarrange(p + rremove("x.title"),p2 + rremove("x.title"),p3,nrow = 3, align="v"))
   dev.off()
 }
