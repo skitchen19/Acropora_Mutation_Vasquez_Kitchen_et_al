@@ -46,7 +46,7 @@ colnames(population_info_data_table) <- c("row_id", "affy_id", "user_specimen_id
 mut<-read.table("E:/PSU/NOAA/somatic_mutation/smutations.txt", sep="\t", header=T)
 head(mut)
 
-# number of muations per A.digitifera scaffold
+# number of mutations per A.digitifera scaffold
 cnt<- mut %>% group_by(CHROM) %>% count()
 
 #########################################
@@ -295,3 +295,110 @@ for(i in chr){
   print(ggarrange(p + rremove("x.title"),p2 + rremove("x.title"),p3,nrow = 3, align="v"))
   dev.off()
 }
+
+######################
+## Import Mixes VCF ##
+######################
+
+# Read in VCF input file.
+vcf <- read.vcfR("E:/PSU/NOAA/somatic_mutation/figures/OneDrive_1_5-16-2021/Mixed_Samples.vcf")
+
+#########################################
+### Extract BAF and LRR from VCF file ###
+#########################################
+
+#extract metadata from VCF
+fix<-as.data.frame(getFIX(vcf))
+
+#B-allele frequencies
+baf <- extract.gt(vcf, element = 'BAF', as.numeric = TRUE,mask = FALSE)
+baf2<-cbind(fix[,1:2],baf)
+
+#reformat BAF
+dfm <- reshape2::melt(baf2,id.vars = c("CHROM","POS"))
+dfm$POS<-as.numeric(paste(dfm$POS))
+head(dfm)
+
+dfm2<-dfm %>% mutate(type="BAF") %>% group_by(variable) %>% mutate(id=row_number())
+
+#logR ratios
+lrr<- extract.gt(vcf, element = 'LRR', as.numeric = TRUE)
+lrr2<-cbind(fix[,1:2],lrr)
+
+#reformat LRR
+lfm <- reshape2::melt(lrr2,id.vars = c("CHROM","POS"))
+lfm$POS<-as.numeric(paste(lfm$POS))
+head(lfm)
+
+lfm2<-lfm %>%  mutate(type="LRR") %>% group_by(variable) %>% mutate(id=row_number())
+
+#combine BAF and LRRs
+df<-rbind(lfm2,dfm2)
+
+###################################################
+### Extract A. digitifera Scaffolds with SMs ###
+###################################################
+
+#loop through chroms with SMs
+sample<-lfm %>% select(variable) %>% unique()
+sample<-unlist(sample)
+
+#############################
+### Plotting BAF/LRR loop ###
+#############################
+library("ggExtra")
+
+for(i in sample){
+  print(i)
+  
+  lfm3<-df %>% subset(variable==i)
+  
+  p <- ggplot(lfm3,aes(x = id, y = value)) 
+  p <- p + geom_point(lfm3 %>% subset(type == "BAF"),
+                      mapping=aes(x = id, y = value,color = cut(value, c(Inf,0.95,0.55,0.45,0.05,-Inf))), pch=16, size=0.3) 
+  p <- p + geom_point(lfm3 %>% subset(type == "LRR"),
+                      mapping=aes(x = id, y = value),color=alpha("darkgrey",0.8), pch=16,size=0.3, inherit.aes=F)
+  p <- p + geom_hline(yintercept = 0, color="black")+
+    facet_grid(type ~ ., scales='free_y')+
+    scale_color_manual(values=c("black","grey80","black","grey80", "black"))
+  p <- p + scale_x_discrete(paste("Ordered Position"),breaks=seq(0, max(lfm3$id), 500)) +
+    scale_y_continuous(paste())+
+    theme_classic() +
+    theme(legend.position = 'none', strip.background = element_rect(fill="grey95",colour = NA),
+          panel.spacing.y = unit(0.3, "lines"),
+          strip.text.x = element_text(size = 6),
+          axis.text = element_text(size = 6))+
+    coord_cartesian(expand = TRUE) + panel_border(size = 0.3)
+  
+  pdf(paste0("E:/PSU/NOAA/somatic_mutation/b-allele_freq/dna_mixes/",i,".pdf"), paper = "letter", width = 4.25, height = 2.75)
+  print(p)
+  dev.off()
+}
+
+
+ggplot(df %>% subset(type=="LRR"), aes(x=value,fill=variable)) + 
+  geom_histogram(alpha=.5, bins=30,position="identity") +facet_wrap(~variable) +
+  xlim(-1.5,1.5)+ theme(legend.position = 'none')+
+  scale_fill_manual(values=c("#8D4C9E","#8D4C9E","#F79028","#F79028","black","black"))
+
+ggplot(df %>% subset(type=="LRR"), aes(x=value,y=variable, fill=variable)) + 
+  geom_violin(alpha=.5)+theme_bw()+theme(legend.position = 'none')+xlab("LRR")+
+  scale_fill_manual(values=c("#8D4C9E","#8D4C9E","#F79028","#F79028","black","black"))
+
+ggplot(df %>% subset(type=="BAF"), aes(x=value,fill=variable)) + 
+  geom_histogram(alpha=.5, bins=50,position="identity") +facet_wrap(~variable)+theme_bw()+
+  scale_y_continuous(expand=c(0,0), limits=c(0,7000)) +scale_x_continuous(expand=c(0.01,0.01)) +xlab("BAF")+
+  theme(legend.position = 'none')+ geom_hline(yintercept = 5000, color="black") + 
+  scale_fill_manual(values=c("#8D4C9E","#8D4C9E","#F79028","#F79028","black","black"))
+
+######################################################
+## Calculate number of alleles in each range of BAF ##
+######################################################
+
+df2<-df %>% subset(type=="BAF") %>% group_by(gr=cut(value, c(Inf,0.99,0.55,0.45,0.01,-Inf)),variable,type) %>% 
+  summarise(n= n()) %>%
+  arrange(as.numeric(gr))
+
+df3<-df %>% subset(type=="LRR") %>% group_by(gr=cut(value, c(Inf,1,0.05,-0.05,-1,-Inf)),variable,type) %>% 
+  summarise(n= n()) %>%
+  arrange(as.numeric(gr))

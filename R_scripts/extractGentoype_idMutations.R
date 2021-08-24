@@ -86,7 +86,6 @@ allSample_mut<-gt[row.names(gt) %in% probes$probe,]
 ####################################
 
 # in parent samples and neighboring colonies
-
 cnt_parents<-probes[,colnames(probes) %in% ramet] %>%
   mutate(num_00=rowSums(. == "0/0"), num_01=rowSums(. == "0/1"),num_11=rowSums(. == "1/1"), probeID=probes$probe)
 
@@ -96,3 +95,36 @@ allSample_mut<-gt[row.names(gt) %in% probes$probe,]
 cnt_offspring <- as.data.frame(allSample_mut[,colnames(allSample_mut) %in% offspring]) %>%
   mutate(num_00=rowSums(. == "0/0",na.rm = TRUE), num_01=rowSums(. == "0/1",na.rm = TRUE),
          num_11=rowSums(. == "1/1",na.rm = TRUE), num_NA=30-(num_00 + num_01 +num_11), probeID=rownames(allSample_mut))
+
+#####################################
+### Calculate Number of Mutations ###
+###     unique to offspring       ###
+#####################################
+
+# extract offspring genotypes
+offspring_gt<-gt[,colnames(gt) %in% c(offspring)]
+
+# add column to identify those that differ between offspring
+noDups_offspring<-as.data.frame(offspring_gt) %>%
+  mutate(same = ifelse(rowSums(.[,c(1:30)] == "1/1") == ncol(.), "allSame", 
+                       ifelse(rowSums(.[,c(1:30)] == "0/0") == ncol(.), "allSame",
+                              ifelse(rowSums(.[,c(1:30)] == "0/1") == ncol(.), "allSame","diff")))) %>%
+  mutate(probe=row.names(offspring_gt)) %>%
+  relocate(probe,.before="a550962-4393310-052921-062_A07.CEL") %>%
+  left_join(probAnnotation %>% dplyr::select(Probe.Set.ID, Chromosome, Physical.Position), by=c("probe"="Probe.Set.ID")) %>%
+  left_join(noDups_parent %>% select("probe","same", "a550962-4393310-052921-062_O01.CEL"), by=c("probe")) %>%
+  rename("same_offspring"=same.x)%>%
+  rename("same_parent"=same.y)
+
+# subset table to only those that differ in offspring but not in parent samples
+probes_offspring<-noDups_offspring %>%
+  filter(same_offspring == "diff" & same_parent=="allSame")
+
+# probes with mutations in offspring samples
+write.table(as.data.frame(probes_offspring),"uniq_offspring.txt", sep="\t", quote=F,row.names=F)
+
+# tabulate the number of mutations for each probe
+cnt_offspring_uniq<-probes_offspring[,colnames(probes_offspring) %in% offspring] %>%
+  mutate(num_00=rowSums(. == "0/0"), num_01=rowSums(. == "0/1"),num_11=rowSums(. == "1/1"), probeID=probes_offspring$probe)
+
+write.table(as.data.frame(cnt_offspring_uniq),"uniq_offspring_cnt.txt", sep="\t", quote=F,row.names=F)
