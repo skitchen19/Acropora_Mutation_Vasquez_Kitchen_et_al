@@ -9,6 +9,9 @@ vcf <- read.vcfR("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/PRO100175_PSU175_SAX_b04/
 ### Convert to Genind  ###
 ##########################
 library(poppr)
+library(dplyr)
+library(tidyr)
+library(tibble)
 
 # Convert VCF file into a genind for the Poppr package.
 genind_obj <- vcfR2genind(vcf)
@@ -43,36 +46,34 @@ genDist<-as.matrix(bitwise_distance)
 genDist2<-rownames_to_column(as.data.frame(genDist),"affy_id")
 
 # read in list of A. palmata samples
-AP_list<-read.table("aplam_list.txt",sep="\t", header=F,stringsAsFactors=F)
+AP_list<-read.table("C:/Users/Sheila's Comp/Documents/GitHub/Acropora_Mutation_Vasquez_Kitchen_et_al/input_files/apalm_list.txt",sep="\t", header=F,stringsAsFactors=F)
 
 #subset matrix to only A. palmata samples in the list
-gendist_AP<-genDist2[,colnames(genDist2) %in% unlist(AP_list)]
-gendist_AP2<-genDist2[rownames((genDist2) %in% unlist(AP_list),]
+gendist_AP<-genDist2[genDist2$affy_id %in% unlist(AP_list),colnames(genDist2) %in% unlist(AP_list)]
 
 # get upper genetic distance estimate
-upper <- round(max(gendist_AP2), digits = 1)
+upper <- round(max(gendist_AP), digits = 1)
 
 #plot histogram
-hist(gendist_AP2[gendist_AP2 > 0 & gendist_AP2 < 1],
+hist(gendist_AP[gendist_AP > 0 & gendist_AP < 1],
      breaks=20,
      axes = TRUE,
+     col = "white",
+     xaxs = "i",
+     yaxs = "i",
      xlab = "Pairwise Genetic Distance",
      ylab = "Frequency of Pairs",
      xlim = c(0, upper), ylim=c(0,20000),main = "")
 
 abline(v=0.032,lty=2, col="black", lwd=2) #genet threshold
-abline(v=0.12773133,lty=1, col="#90C640", lwd=2) #Apalm genet avg
+abline(v=0.12773133,lty=1, col="#F58026", lwd=6) #Apalm genet avg
+abline(v= 0.0056,lty=1, col="#0673B3", lwd=6) #Apalm ramet avg
 
-rect(0.005658987-0.005440774,0,0.005658987+0.005440774,20000, col= rgb(0,0,1.0,alpha=0.5),border = NA)#avg apalm ramet distance
+#rect(0.005658987-0.005440774,0,0.005658987+0.005440774,20000, col= rgb(0,0,1.0,alpha=0.5),border = NA)#avg apalm ramet distance
 
 #################################
 ### Subset Matrix for Samples ###
 #################################
-library(tibble)
-library(dplyr)
-library(tidyr)
-
-
 # different sets of samples of interests
 ramet<-c("a550962-4393310-052921-062_A01.CEL",
           "a550962-4393310-052921-062_C01.CEL",
@@ -186,7 +187,7 @@ meltGenDist3<-rbind(meltGenDist2, cu_cu_filter)
 ### Plot Genetic Distances ###
 ##############################
 library(ggplot2)
-#library(ggbeeswarm)
+library(ggbeeswarm)
 
 #set names of factor levels
 meltGenDist3$group3<-factor(meltGenDist3$group3, levels=c("ramet x ramet",
@@ -205,6 +206,22 @@ p <- ggplot(meltGenDist3, aes(x=group3, y=value, color=group3, fill=group3)) +
   ylab("Pairwise Genetic Distance")+
   xlab("")+
   theme(legend.position = "none")+
+  scale_color_manual(values=c("black","grey","#E69F00","#D55E00","#0072B2", "#0072B2"))+
+  scale_fill_manual(values=c("#00000020","#8F8F8F20","#E69F0020","#D55E0020","#0072B220","#0072B220"))+
+  labs(color='Species') 
+p 
+
+# plot genetic distance violin plot
+p <- ggplot(meltGenDist3 %>% filter(group3 =="ramet x ramet" | group3 == "ramet x rametNeighbor"), aes(x=group3, y=value, color=group3, fill=group3)) + 
+  geom_hline(yintercept=0.0056,lty=1, color="#0673B3", lwd=1) + #Apalm ramet avg
+  geom_violin(lwd=0.8,trim = FALSE) +
+  #geom_beeswarm(size=1.5, alpha=0.8,dodge.width = 0.3, cex=1.4)+
+  geom_boxplot(width=0.1, color="black", alpha=0.2) +
+  theme_classic() +
+  ylab("Pairwise Genetic Distance")+
+  xlab("")+
+  theme(legend.position = "none")+
+  ylim(0,0.02) +
   scale_color_manual(values=c("black","grey","#E69F00","#D55E00","#0072B2", "#0072B2"))+
   scale_fill_manual(values=c("#00000020","#8F8F8F20","#E69F0020","#D55E0020","#0072B220","#0072B220"))+
   labs(color='Species') 
@@ -412,20 +429,67 @@ summary(mod2)
 # pairwise comparisons with post-hoc multiple test correction
 emmeans(mod2, list(pairwise ~ location), adjust = "tukey")
 
+#########
+## PCA ##
+#########
+
+# Convert VCF file into a genlight for the PCA analysis.
+genlight_obj <- vcfR2genlight(vcf)
+
+s3<-as.data.frame(samples3[-1])
+colnames(s3)<-c("target_id")
+
+pop_subset<-s3 %>% 
+  left_join(population_info_data_table, by=c("target_id"="affy_id")) %>%
+  mutate(category=c(rep("ramet",times=10), rep("rametNeighbor",times=5), rep("automictic",times=2), rep("self",times=28),
+                    rep("cu_fl",times=11), rep("BE",times=12), rep("CU",times=12), rep("FL",times=12)))
+
+
+genlight_obj@pop<-as.factor(pop_subset$category)
+
+g<-glPca(genlight_obj)
+
+g.pca.scores <- as.data.frame(g$scores[,1:2]) %>%
+  mutate(target_id=rownames(.)) %>%
+  left_join(pop_subset, by=c("target_id"))
+
+# variance explained by each axis
+var_frac <- g$eig/sum(g$eig)
+
+#plot the PCA
+set.seed(9)
+p <- ggplot(g.pca.scores, aes(x=PC1, y=PC2, color=category, label=user_specimen_id))
+p <- p + geom_point(size=3, alpha=0.8)
+p <- p + stat_ellipse(level = 0.95, size = 1)
+p <- p + scale_color_manual(values=c(BE="black",CU="grey80",cu_fl="#0072B2",FL="grey40",self="#D55E00",
+                                     ramet="#FF801F",rametNeighbor="#F0E442",automictic="#E69F00"))
+p <- p + theme_bw()+geom_text() +ylim(0,30) +xlim(6,12)
+p
+
+p2<- p + theme_bw() + ylim(-4,0) +xlim(-15,-12)
+p2 <- p2 + stat_ellipse(level = 0.95, size = 1)
+p2
+
 ###########################
 ## Plots of DNA mixtures ##
 ###########################
 
 # genetic distance estimates of DNA mixtures to donor genets
-dat<-cbind.data.frame(pair=c("GAxGB","M1xGA","M1xGB","M2xGA","M2xGB"),
-           gen.dist=c("0.070866342","0.001929718","0.067159252","0.013025594","0.046541743"))
+dat<-cbind.data.frame(pair=c("GAxGA","M1xGA","GBxGB","M2xGA","M2xGB","M1xGB","GAxGB"),
+           gen.dist=c("0.001625025","0.001929718","0.004392647","0.013025594","0.046541743","0.067159252","0.070866342"))
 
 # plot DNA mixture genetic distances
+dat$pair <- factor(dat$pair, levels = dat$pair)
+
 ggplot(dat, aes(x=pair,y=as.numeric(gen.dist))) + 
-  geom_point(size=6)+ 
-  geom_hline(yintercept = 0.005398558, color="grey")+ # ramet distance
+  geom_point(size=4)+ 
+  geom_hline(yintercept = 0.005398558, color="darkgrey",size=2)+ # avg ramet distance
+  geom_hline(yintercept = 0.06634868, color="#0072B2",size=2)+ # avg CUxCU distance
+  geom_rect(aes(ymin=0.005398558-0.002990064, ymax=0.005398558+0.002990064, xmin=0,xmax=8), fill="lightgrey", alpha=0.1, inherit.aes = FALSE) +
+  geom_rect(aes(ymin=0.06634868-0.003342121, ymax=0.06634868+0.003342121, xmin=0,xmax=8), fill="#0072B2", alpha=0.05, inherit.aes = FALSE) +
   coord_flip() + xlab("")+ ylab("Pairwise Genetic Distance")+
   theme_classic()
+
 
 # heterozygosity and missing data of DNA mixtures
 het2<-cbind.data.frame(sample=c("GA1","GA2","M1","M2","GB1","GB2"),
