@@ -7,7 +7,7 @@ library(dplyr)
 #vcf <- read.vcfR("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/PRO100175_PSU175_SAX_b04/dup_removed_DB_snps_P1-5.vcf")
 
 setwd("C:/Users/Sheila's Comp/Desktop")
-vcf <- read.vcfR("Select_on_data_88.vcf")
+vcf <- read.vcfR("STAGdb_04Jan2022.vcf")
 
 ##################
 ### Subset VCF ###

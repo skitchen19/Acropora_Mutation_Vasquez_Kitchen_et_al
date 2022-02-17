@@ -3,7 +3,7 @@
 ##################
 library(vcfR)
 
-vcf <- read.vcfR("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/PRO100175_PSU175_SAX_b04/dup_removed_DB_snps_P1-5.vcf")
+vcf <- read.vcfR("STAGdb_04Jan2022.vcf")
 
 ##########################
 ### Convert to Genind  ###
@@ -17,7 +17,7 @@ library(tibble)
 genind_obj <- vcfR2genind(vcf)
 
 # Add population information to the genind object.
-population_info_data_table <- read.table("E:/PSU/NOAA/PRO100175_PSU175_SAX_b04/popInfo_P1-5.txt",
+population_info_data_table <- read.table("popInfo_STAGdb_04Jan2022.txt",
                                          check.names=FALSE, header=F, 
                                          na.strings=c("", "NA"), stringsAsFactors=FALSE, sep="\t",quote="")
 colnames(population_info_data_table) <- c("row_id", "affy_id", "user_specimen_id", "region")
