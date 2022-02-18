@@ -40,7 +40,7 @@ setwd("C:/Users/Sheila's Comp/Desktop")
 vcf <- read.vcfR("STAGdb_04Jan2022.vcf")
 
 # Read in population information
-population_info_data_table <- read.table("popInfo_STAGdb_04Jan2022.txt",
+population_info_data_table <- read.table("popInfo_STAGdb_04Jan2022.TABULAR",
                                          check.names=FALSE, header=F, 
                                          na.strings=c("", "NA"), stringsAsFactors=FALSE, sep="\t",quote="")
 colnames(population_info_data_table) <- c("row_id", "affy_id", "user_specimen_id", "region")

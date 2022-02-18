@@ -17,7 +17,7 @@ library(tibble)
 genind_obj <- vcfR2genind(vcf)
 
 # Add population information to the genind object.
-population_info_data_table <- read.table("popInfo_STAGdb_04Jan2022.txt",
+population_info_data_table <- read.table("popInfo_STAGdb_04Jan2022.tabular",
                                          check.names=FALSE, header=F, 
                                          na.strings=c("", "NA"), stringsAsFactors=FALSE, sep="\t",quote="")
 colnames(population_info_data_table) <- c("row_id", "affy_id", "user_specimen_id", "region")
