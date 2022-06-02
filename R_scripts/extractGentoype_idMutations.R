@@ -202,3 +202,54 @@ cnt_offspring_uniq<-probes_offspring[,colnames(probes_offspring) %in% offspring]
   mutate(num_00=rowSums(. == "0/0"), num_01=rowSums(. == "0/1"),num_11=rowSums(. == "1/1"), probeID=probes_offspring$probe)
 
 write.table(as.data.frame(cnt_offspring_uniq),"uniq_offspring_cnt.txt", sep="\t", quote=F,row.names=F)
+
+
+########################################
+### ID probes with different alleles ###
+###   from technical replicates      ###
+########################################
+
+# reload in VCF
+vcf <- read.vcfR("STAGdb_04Jan2022.vcf")
+
+# different replicates of Sand Island genet
+reps<-c("a550962-4393310-052921-062_A15.CEL",	
+  "a550962-4393310-052921-062_C15.CEL",
+  "a550962-4393310-052921-062_E15.CEL",
+  "a550962-4393310-052921-062_G15.CEL",
+  "a550962-4393310-052921-062_I15.CEL",
+  "a550962-4393310-052921-062_K15.CEL",
+  "a550962-4393310-052921-062_M15.CEL",
+  "a550962-4393310-052921-062_O15.CEL")
+
+# select columns for extraction
+sample_reps<-c("FORMAT",reps)
+# subset VCF to Sand Island genet samples
+vcf@gt<-vcf@gt[,colnames(vcf@gt) %in% sample_reps]
+
+# extract genotypes
+gt_reps <- extract.gt(vcf, element="GT", as.numeric=FALSE)
+gt_reps[1:3,1:3]
+
+# determine rows with differing genotype calls
+rep_diffs<-as.data.frame(gt_reps) %>%
+  mutate(same = ifelse(rowSums(.[,c(1:8)] == "1/1") == ncol(.), "allSame", 
+                       ifelse(rowSums(.[,c(1:8)] == "0/0") == ncol(.), "allSame",
+                              ifelse(rowSums(.[,c(1:8)] == "0/1") == ncol(.), "allSame","diff")))) %>%
+  mutate(SI.1=ifelse(rowSums(.[,c(1:3)] == "1/1") == ncol(.[,c(1:3)]), "allSame", 
+                    ifelse(rowSums(.[,c(1:3)] == "0/0") == ncol(.[,c(1:3)]), "allSame",
+                           ifelse(rowSums(.[,c(1:3)] == "0/1") == ncol(.[,c(1:3)]), "allSame","diff")))) %>%
+  mutate(SI.10=ifelse(rowSums(.[,c(4:6)] == "1/1") == ncol(.[,c(4:6)]), "allSame", 
+                    ifelse(rowSums(.[,c(4:6)] == "0/0") == ncol(.[,c(4:6)]), "allSame",
+                           ifelse(rowSums(.[,c(4:6)] == "0/1") == ncol(.[,c(4:6)]), "allSame","diff")))) %>%
+  mutate(SI.12=ifelse(rowSums(.[,c(7:8)] == "1/1") == ncol(.[,c(7:8)]), "allSame", 
+                      ifelse(rowSums(.[,c(7:8)] == "0/0") == ncol(.[,c(7:8)]), "allSame",
+                             ifelse(rowSums(.[,c(7:8)] == "0/1") == ncol(.[,c(7:8)]), "allSame","diff")))) %>%
+  mutate(probe=row.names(gt)) %>%
+  relocate(probe,.before="a550962-4393310-052921-062_A15.CEL") %>%
+  left_join(probAnnotation %>% dplyr::select(Probe.Set.ID, Chromosome, Physical.Position), by=c("probe"="Probe.Set.ID"))
+
+shared_probes <- rep_diffs[rep_diffs$probe %in% probes$probe,] 
+
+write.table(shared_probes,"techReps_SM.txt", sep="\t", quote=F,row.names=F)
+
